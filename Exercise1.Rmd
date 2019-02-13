@@ -1,0 +1,242 @@
+# ECO 395M: Exercises 1
+
+
+## Data visualization 1: green buildings
+
+The median rent for green buildings is not necessarily higher because they are certified as "green" but may be due to other characteristics. For instance, the following graph shows that median rents are only higher for green buildings compared to non-green buildings if they are in the lowest building quality Class C.
+
+```{r, include=FALSE}
+library(tidyverse)
+library(ggplot2)
+
+greenbuildings = read.csv("C:/Users/ASUS/Desktop/Google Drive/Austin (2017-)/4 - Spring 2019/Data Mining & Statistical Learning/data/greenbuildings.csv")
+
+greenbuildings$Rating <- NA
+greenbuildings$Rating[greenbuildings$green_rating==1] <- "green"
+greenbuildings$Rating[greenbuildings$green_rating==0] <- "non-green"
+
+greenbuildings$class_abc <- NA
+greenbuildings$class_abc <- "C"
+greenbuildings$class_abc[greenbuildings$class_a==1] <- "A"
+greenbuildings$class_abc[greenbuildings$class_b==1] <- "B"
+
+greenbuildings$Amenity <- NA
+greenbuildings$Amenity[greenbuildings$amenities==1] <- "amenities"
+greenbuildings$Amenity[greenbuildings$amenities==0] <- "no amenities"
+
+
+g = ggplot(data = greenbuildings) 
+g +  geom_boxplot(mapping = aes(x = Rating, y = Rent, fill=Rating), outlier.shape = NA) + 
+    facet_wrap(~ class_abc, nrow = 1) + scale_y_continuous(limits=c(0, 60)) +
+    labs(title = "Median rent higher for green buildings in Class C") +
+    scale_fill_manual(values=c("forestgreen", "gray50"))
+```
+
+```{r greenbuildings, include=FALSE}
+library(tidyverse)
+library(ggplot2)
+
+greenbuildings = read.csv("C:/Users/ASUS/Desktop/Google Drive/Austin (2017-)/4 - Spring 2019/Data Mining & Statistical Learning/data/greenbuildings.csv")
+
+greenbuildings$Rating <- NA
+greenbuildings$Rating[greenbuildings$green_rating==1] <- "green"
+greenbuildings$Rating[greenbuildings$green_rating==0] <- "non-green"
+
+greenbuildings$class_abc <- NA
+greenbuildings$class_abc <- "C"
+greenbuildings$class_abc[greenbuildings$class_a==1] <- "A"
+greenbuildings$class_abc[greenbuildings$class_b==1] <- "B"
+
+greenbuildings$Amenity <- NA
+greenbuildings$Amenity[greenbuildings$amenities==1] <- "amenities"
+greenbuildings$Amenity[greenbuildings$amenities==0] <- "no amenities"
+
+
+```
+
+
+```{r, echo=FALSE, warning=FALSE}
+g = ggplot(data = greenbuildings) 
+g +  geom_boxplot(mapping = aes(x = Rating, y = Rent, fill=Rating), outlier.shape = NA) + 
+    facet_wrap(~ class_abc, nrow = 1) + scale_y_continuous(limits=c(0, 60)) +
+    labs(title = "Median rent higher for green buildings in Class C") +
+    scale_fill_manual(values=c("forestgreen", "gray50"))
+```
+
+## Data visualization 2: flights at ABIA
+
+
+```{r, include=FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+abia = read.csv("C:/Users/ASUS/Desktop/Google Drive/Austin (2017-)/4 - Spring 2019/Data Mining & Statistical Learning/data/ABIA.csv")
+
+abia$day <- NA
+abia$day[abia$DayOfWeek==1] <- "Mon"
+abia$day[abia$DayOfWeek==2] <- "Tue"
+abia$day[abia$DayOfWeek==3] <- "Wed"
+abia$day[abia$DayOfWeek==4] <- "Thu"
+abia$day[abia$DayOfWeek==5] <- "Fri"
+abia$day[abia$DayOfWeek==6] <- "Sat"
+abia$day[abia$DayOfWeek==7] <- "Sun"
+
+correct_order <- c("Mon","Tue","Wed","Thu","Fri","Sat","Sun")
+
+```
+
+
+```{r, echo=FALSE, warning=FALSE}
+abia %>% group_by(day) %>%
+  summarise(avg = mean(DepDelay,na.rm = TRUE)) %>%
+  gather(metric, delay, -day) %>%
+  ggplot(.,aes(x = day, y = delay, 
+               group = metric, color = metric)) + 
+  scale_x_discrete(limits=correct_order) + 
+  geom_point() +
+  labs(title = "Departure delay by day of the week") 
+
+abia %>% group_by(day) %>%
+  summarise(avg = mean(ArrDelay,na.rm = TRUE)) %>%
+  gather(metric, delay, -day) %>%
+  ggplot(.,aes(x = day, y = delay, 
+               group = metric, color = metric)) + 
+  scale_x_discrete(limits=correct_order) + 
+  geom_point() +
+  labs(title = "Arrival delay by day of the week") 
+```
+
+## 3: Regression vs KNN
+
+
+
+```{r, include=FALSE}
+library(mosaic)
+library(tidyverse)
+library(FNN)
+
+sclass = read.csv("C:/Users/ASUS/Desktop/Google Drive/Austin (2017-)/4 - Spring 2019/Data Mining & Statistical Learning/data/sclass.csv")
+
+# The variables involved
+summary(sclass)
+
+# Focus on 2 trim levels: 350 and 65 AMG
+sclass350 = subset(sclass, trim == '350')
+dim(sclass350)
+
+sclass65AMG = subset(sclass, trim == '65 AMG')
+summary(sclass65AMG)
+
+# Look at price vs mileage for each trim level
+plot(price ~ mileage, data = sclass350)
+plot(price ~ mileage, data = sclass65AMG)
+
+# Make a train-test split
+N = nrow(sclass350)
+N_train = floor(0.8*N)
+N_test = N - N_train
+
+
+
+
+#####
+# Train/test split
+#####
+
+# randomly sample a set of data points to include in the training set
+train_ind = sample.int(N, N_train, replace=FALSE)
+
+# Define the training and testing set
+D_train = sclass350[train_ind,]
+D_test = sclass350[-train_ind,]
+
+# reorder the rows of the testing set by the mileage variable
+D_test = arrange(D_test, mileage)
+head(D_test)
+
+# Now separate the training and testing sets into features (X) and outcome (y)
+X_train = select(D_train, mileage)
+y_train = select(D_train, price)
+X_test = select(D_test, mileage)
+y_test = select(D_test, price)
+
+
+#####
+# Fit a few models
+#####
+
+# linear and quadratic models
+lm1 = lm(price ~ mileage, data=D_train)
+lm2 = lm(price ~ poly(mileage, 2), data=D_train)
+
+# KNN 5
+knn5 = knn.reg(train = X_train, test = X_test, y = y_train, k=5)
+names(knn5)
+
+# KNN 20
+knn20 = knn.reg(train = X_train, test = X_test, y = y_train, k=20)
+names(knn20)
+
+# KNN 50
+knn50 = knn.reg(train = X_train, test = X_test, y = y_train, k=50)
+names(knn50)
+
+# KNN 100
+knn100 = knn.reg(train = X_train, test = X_test, y = y_train, k=100)
+names(knn100)
+
+
+#####
+# Compare the models by RMSE_out
+#####
+
+# define a helper function for calculating RMSE
+rmse = function(y, ypred) {
+  sqrt(mean(data.matrix((y-ypred)^2)))
+}
+
+ypred_lm1 = predict(lm1, X_test)
+ypred_lm2 = predict(lm2, X_test)
+ypred_knn5 = knn5$pred
+ypred_knn20 = knn20$pred
+ypred_knn50 = knn50$pred
+ypred_knn100 = knn100$pred
+
+
+rmse(y_test, ypred_lm1)
+rmse(y_test, ypred_lm2)
+r1<-rmse(y_test, ypred_knn5)
+r2<-rmse(y_test, ypred_knn20)
+r3<-rmse(y_test, ypred_knn50)
+r4<-rmse(y_test, ypred_knn100)
+
+
+
+####
+# plot the fit
+####
+
+# attach the predictions to the test data frame
+D_test$ypred_lm2 = ypred_lm2
+D_test$ypred_knn20 = ypred_knn20
+
+p_test = ggplot(data = D_test) + 
+  geom_point(mapping = aes(x = mileage, y = price), color='lightgrey') + 
+  theme_bw(base_size=18) + 
+  ylim(7000, 20000)
+p_test
+```
+
+
+```{r, echo=FALSE, warning=FALSE}
+r1
+r2
+r3
+r4
+
+p_test + geom_point(aes(x = mileage, y = ypred_knn20), color='red')
+p_test + geom_path(aes(x = mileage, y = ypred_knn20), color='red')
+p_test + geom_path(aes(x = mileage, y = ypred_knn20), color='red') + 
+  geom_path(aes(x = mileage, y = ypred_lm2), color='blue')
+```
