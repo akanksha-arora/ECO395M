@@ -1,0 +1,47 @@
+---
+output:
+  html_document: default
+---
+# ECO 395M: Exercises 3
+
+## Question 1: Model selection and regularization: green buildings
+
+Since there are many covariates and interactions one could consider here, we use stepwise selection for variable selection. The model summary indicates that on average, rent per square foot increases with size of the property, fraction of building currently under lease, building quality, and the average rent in the local market. On the other hand, a higher number of cooling degree days, precipitation, and utility costs are associated with lower rent since tenants are likely budget constrained and will spend less on rent if they have to spend more on other expenses. Green certification (measured by having LEED certification) is associated with higher rents (rent per square foot increases by USD 2.27 if a property is LEED certified) but this is only significant at 10% level.
+
+```{r, include=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(MASS)
+library(backports)
+options(scipen=999)
+# read in the data
+greenbuildings = read.csv("C:/Users/ASUS/Desktop/Google Drive/Austin (2017-)/4 - Spring 2019/Data Mining & Statistical Learning/data/greenbuildings.csv")
+```
+
+```{r, include=TRUE}
+greenbuildings<-na.omit(greenbuildings)
+greenbuildings$Utility_Costs <- greenbuildings$net*(greenbuildings$Gas_Costs + greenbuildings$Electricity_Costs)
+
+# model selection
+lm = lm(Rent ~ . -CS_PropertyID -cluster -Gas_Costs -Electricity_Costs -net, data=greenbuildings)
+step <- step(lm)
+summary(step)
+```
+
+Interacting the significant covariates with Green Certification indicates that the green effect varies based on presence of local amenities and rent of other properties in local market. Those who live in areas with higher market rent are likely more affluent and willing to pay a premium for green certification to signal their environmental consciousness. On the other hand, people living in an area with more local amenities but in a building with green certification are less willing to pay higher rent. This may indicate that green certification and the presence of local amenities are substitutes.  Also, the interaction of green certification and utility costs is not significant in the model.  One might think that green buildings would lower the utilities needed by a certain percentage, and so having a green building in a higher utility usage area could potentially save utility fees, and individuals would pay more rent for this option. However, the term is insignificant in the model.  A further analysis of why this is the case is needed.  One might take into account that utility usage might not decrease (or could increase) if a building became green, because there could be a moral hazard type effect. Alternatively, renters might have to pay their own utility fees, but are unaware of the utility costs before they sign their lease, meaning that they do not factor in building greenness.  In addition to studying the utility implications of green certification, another further area for more detailed research is whether the positive coefficient on LEEDS certification is biased due to an omitted variable bias from not including certain measures on neighborhood quality.  The positive interaction of green certification and cluster rent could fit with this narrative.  Quasiexperimental or experimental methods could be used in further studies to see if green certification causally effects rent.  For example, a marketing wing cold experiment by giving potential renters choices between hypothetical buildings that differ only on green certification status, and see what individuals are willing to pay for rent.  A similar experiment could be done comparing how green certification affects hypothetical renters' choices over high and low utility cost properties when they have to pay utilities on their own, and when it is included in rent.
+
+
+```{r, include=TRUE}
+lm_green = lm(Rent ~ (size + leasing_rate + stories + class_a + class_b + amenities + cd_total_07 + hd_total07 + Precipitation + cluster_rent + Utility_Costs)*LEED, data=greenbuildings)
+summary(lm_green)
+```
+
+## Question 2: What Causes What
+
+1)	 One cannot simply run the regression of crime on police to understand how more cops in the streets affect crime because there could be omitted variable bias.  For instance, if some outside factor not controlled for in the regression is correlated with crime and police numbers, then our coefficient of the effect of police on crime could be biased.  Using another example to illustrate this point, suppose we were to run a regression of health (ex. dummy for mortality) on number of times visited a doctor during the year.  We might find a positive coefficient (or negative, depending on what the outcome variable for health is) on number of doctor visits, suggesting that visiting the doctor more will increase chances of death.  This coefficient is likely biased; individuals who are in worse health are more likely to visit the doctor and are more likely to die during the year, hence, the coefficient is biased.  In order to get around these selection bias concerns, a researcher could do a randomized control trial, which would (with a large enough sample size) make sure the treatment and control groups have similar characteristics (including for unobservables) so that the control group would serve as a good counterfactual.  That said, RCTs are often infeasible, so economists use natural experiments to try and get at causation.  
+
+2)	 The UPenn researchers tried one such natural experiment to get the causal effect of police on crime.  In the US, there is a terror alert level set by the Department of Homeland Security.  During high-alert days, certain areas have increased police presence.  Given that the terror alert level is not set at the local police level and is set in regards to terrorism rather than general crime, the high-alert status provides a shock to police presence that allows us to potentially examine the causal effects of policing on crime.  The researchers compare crime on high-alert days vs. crime on normal days in DC, an area likely to have increased police presence due to terror warning levels.  The researchers find a decrease in crime 7.316 crimes per day on high-alert days relative to normal terror-alert days, or approximately a 6.6% decrease in daily crime.  The effect is significant at the 5% level.  
+
+3)	The researchers were concerned that increased terror-alert levels would reduce tourism, and this would lead to a decrease in crime (ex. fewer pickpocket thefts, etc.).  In order to examine whether high-alert status decreased tourism, they first compared Metro ridership at midday on high-alert and low-alert days.  Low-alert days averaged 116,000 riders and high-alert days averaged 113,000 riders, and the difference in means was not statistically significant.  They also included Metro ridership in the regression to try and control for tourism or general activity.  By controlling for tourism, the researchers are trying to show that it is the increased police presence, rather than the decrease in people out-and-about that leads to the observed decrease in crime.  The results in Table 2 column 2 suggest that even after controlling for tourism, there is a statistically significant decrease in crime.
+
+4)  D.C. is split into seven police districts.  Table 4 uses this fact to find more variation in policing response to the high-alert days.  District 1 includes the National Mall.  Given that District 1 includes important targets, the researchers hypothesize that increased police attention will be given to District 1 relative to other.  Hence, one would expect to see a larger effect of high-alert days on crime in District 1 than other districts.  Including district fixed effects in the model (as well as day of the week fixed effects and weather effects), the researchers find a statistically significant decrease in crime of 2.621 crimes per day (or 15%) for District 1 and a decrease in crime of .571 for other districts, but this not statistically significant.   This extra dimension of geographic variation strengthens the researchers conclusion that increased police presence reduces crime.  In short, daily crime drops on high-alert days in DC.  Moreover, daily crime drops more in police districts that greatly increase their police presence on high alert days relative to those that don't increase their police presence by that much.  Additionally, it does not appear the effects are driven by tourism or some other factor relating to people being out-and-about, since the researchers control for Metro ridership and still find statistically significant effects of police on crime.  
